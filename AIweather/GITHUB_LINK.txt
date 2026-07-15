@@ -1,0 +1,27 @@
+============================================================
+         AI 天气预报项目 - GitHub 仓库链接
+============================================================
+
+项目名称：AIWeather (AI 天气预报)
+仓库地址：https://github.com/Areebol1/aiweather
+克隆命令：git clone https://github.com/Areebol1/aiweather.git
+开源许可：MIT License
+技术栈  ：Kotlin + Jetpack Compose + MVI + Hilt + Ktor + DeepSeek AI
+
+------------------------------------------------------------
+使用说明：
+1. 点击上方链接或复制到浏览器打开即可访问仓库
+2. 仓库包含完整源代码、安装指南、API 文档与使用说明
+3. 如需本地运行，请执行：
+   git clone https://github.com/Areebol1/aiweather.git
+   然后在 Android Studio 中打开项目
+
+------------------------------------------------------------
+项目亮点：
+- Jetpack Compose 声明式 UI（Material 3 设计）
+- MVI 单向数据流架构
+- DeepSeek AI 集成：自然语言天气描述、穿衣建议、活动推荐
+- 动态天气主题（晴/阴/雨/雪/夜自动切换配色）
+- Room 本地搜索历史持久化
+- 类型安全的状态管理（StateFlow + Intent 模式）
+============================================================

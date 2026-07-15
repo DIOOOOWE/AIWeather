@@ -1,0 +1,293 @@
+
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Weather</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .card {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 1rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        .weather-icon {
+            font-size: 4rem;
+        }
+        .temp-display {
+            font-size: 3.5rem;
+            font-weight: 300;
+        }
+        .forecast-card {
+            min-width: 120px;
+        }
+        .hourly-scroll {
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+        .favorite-btn {
+            transition: all 0.3s;
+        }
+        .favorite-btn:hover {
+            transform: scale(1.1);
+        }
+        .search-result-item {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .search-result-item:hover {
+            background-color: #f8f9fa;
+        }
+        .ai-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+    </style>
+</head>
+<body>
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+                        <div class="d-flex align-items-center">
+                            <i class="fa fa-cloud-sun-o mr-2" style="font-size: 1.5rem; color: #667eea;"></i>
+                            <h1 class="h3 mb-0">AI Weather</h1>
+                        </div>
+                        <form class="d-flex flex-wrap gap-2" action="/search" method="get">
+                            <input type="text" name="query" class="form-control" placeholder="搜索城市..."
+                                   th:value="${searchQuery}" required>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        </form>
+                    </div>
+
+                    <div th:if="${searchResults != null && !searchResults.isEmpty()}" class="mb-4">
+                        <div class="card">
+                            <div class="card-header">搜索结果</div>
+                            <div class="card-body p-0">
+                                <div class="list-group">
+                                    <a th:each="location : ${searchResults}"
+                                       th:href="@{/weather(cityName=${location.name}, lat=${location.latitude}, lon=${location.longitude}, region=${location.region}, country=${location.country})}"
+                                       class="list-group-item list-group-item-action search-result-item">
+                                        <div class="d-flex justify-content-between">
+                                            <span><strong th:text="${location.name}"></strong></span>
+                                            <span th:if="${location.region}" class="text-muted small">
+                                                [[${location.region}]], [[${location.country}]]
+                                            </span>
+                                        </div>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div th:if="${weather != null}" class="mb-4">
+                        <div class="d-flex flex-wrap justify-content-between align-items-start mb-4">
+                            <div>
+                                <h2 class="h4" th:text="${weather.cityName}"></h2>
+                                <p class="text-muted small" th:text="${weather.region + ', ' + weather.country}"></p>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <form action="/toggle-favorite" method="post">
+                                    <input type="hidden" name="cityName" th:value="${weather.cityName}">
+                                    <input type="hidden" name="lat" th:value="${currentLocation.latitude}">
+                                    <input type="hidden" name="lon" th:value="${currentLocation.longitude}">
+                                    <input type="hidden" name="region" th:value="${weather.region}">
+                                    <input type="hidden" name="country" th:value="${weather.country}">
+                                    <input type="hidden" name="unit" th:value="${tempUnit}">
+                                    <button type="submit" class="btn favorite-btn"
+                                            th:class="${isFavorite ? 'btn-danger' : 'btn-outline-danger'}">
+                                        <i class="fa" th:class="${isFavorite ? 'fa-heart' : 'fa-heart-o'}"></i>
+                                    </button>
+                                </form>
+                                <form action="/weather" method="get">
+                                    <input type="hidden" name="cityName" th:value="${weather.cityName}">
+                                    <input type="hidden" name="lat" th:value="${currentLocation.latitude}">
+                                    <input type="hidden" name="lon" th:value="${currentLocation.longitude}">
+                                    <input type="hidden" name="region" th:value="${weather.region}">
+                                    <input type="hidden" name="country" th:value="${weather.country}">
+                                    <input type="hidden" name="unit" th:value="${tempUnit == 'CELSIUS' ? 'FAHRENHEIT' : 'CELSIUS'}">
+                                    <button type="submit" class="btn btn-outline-primary">
+                                        <i class="fa fa-refresh"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div class="text-center py-4">
+                            <div class="weather-icon mb-2" th:class="getWeatherIcon(weather.weatherCode)">
+                                <i th:class="getWeatherIconClass(weather.weatherCode)"></i>
+                            </div>
+                            <div class="temp-display" th:text="${weather.temperature}"></div>
+                            <div class="h5 mb-2" th:text="${tempUnit.symbol}"></div>
+                            <div class="h5" th:text="${weather.description}"></div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <div class="card text-center p-3">
+                                    <i class="fa fa-thermometer-half text-muted mb-1"></i>
+                                    <div class="text-xs text-muted">体感温度</div>
+                                    <div class="h6" th:text="${weather.feelsLike + tempUnit.symbol}"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card text-center p-3">
+                                    <i class="fa fa-tint text-muted mb-1"></i>
+                                    <div class="text-xs text-muted">湿度</div>
+                                    <div class="h6" th:text="${weather.humidity + '%'}"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card text-center p-3">
+                                    <i class="fa fa-wind text-muted mb-1"></i>
+                                    <div class="text-xs text-muted">风速</div>
+                                    <div class="h6" th:text="${weather.windSpeed + ' km/h'}"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card text-center p-3">
+                                    <i class="fa fa-sun-o text-muted mb-1"></i>
+                                    <div class="text-xs text-muted">紫外线</div>
+                                    <div class="h6" th:text="${weather.uvDescription}"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="card p-3">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fa fa-sunrise-o mr-2 text-orange"></i>
+                                        <span class="text-muted">日出</span>
+                                        <span class="ml-auto font-weight-bold" th:text="${weather.sunrise}"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card p-3">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fa fa-sunset-o mr-2 text-orange"></i>
+                                        <span class="text-muted">日落</span>
+                                        <span class="ml-auto font-weight-bold" th:text="${weather.sunset}"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div th:if="${aiInsight != null}" class="mb-4">
+                            <div class="card ai-card p-4">
+                                <h4 class="h5 mb-3"><i class="fa fa-lightbulb-o mr-2"></i>AI 天气洞察</h4>
+                                <div class="mb-3">
+                                    <div class="text-muted small">天气总结</div>
+                                    <div th:text="${aiInsight.summary}"></div>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="text-muted small">穿衣建议</div>
+                                    <div th:text="${aiInsight.clothing}"></div>
+                                </div>
+                                <div>
+                                    <div class="text-muted small">活动建议</div>
+                                    <div th:text="${aiInsight.activities}"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <h4 class="h5 mb-3">未来7天预报</h4>
+                            <div class="d-flex flex-wrap justify-content-between gap-2">
+                                <div th:each="day : ${weather.dailyForecast}" class="card forecast-card p-2 text-center">
+                                    <div class="text-xs text-muted" th:text="${day.date.substring(5)}"></div>
+                                    <div class="text-lg" th:class="getWeatherIconClass(day.weatherCode)"></div>
+                                    <div class="text-xs mt-1" th:text="${day.maxTemp + '/' + day.minTemp + tempUnit.symbol}"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 class="h5 mb-3">24小时预报</h4>
+                            <div class="hourly-scroll d-flex gap-2">
+                                <div th:each="hour : ${weather.hourlyForecast}" class="card p-2 text-center" style="min-width: 80px;">
+                                    <div class="text-xs" th:text="${hour.time}"></div>
+                                    <div class="text-sm" th:class="getWeatherIconClass(hour.weatherCode)"></div>
+                                    <div class="text-xs" th:text="${hour.temp + tempUnit.symbol}"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div th:if="${weather == null && searchResults == null}" class="text-center py-8">
+                        <i class="fa fa-cloud text-muted" style="font-size: 4rem;"></i>
+                        <h3 class="h4 mt-4 text-muted">搜索城市查看天气</h3>
+                    </div>
+
+                    <div class="mt-4 pt-4 border-top">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5 class="h6 mb-2"><i class="fa fa-history mr-1"></i>搜索历史</h5>
+                                <div th:if="${history != null && !history.isEmpty()}">
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <a th:each="item : ${history}"
+                                           th:href="@{/weather(cityName=${item.cityName}, lat=${item.latitude}, lon=${item.longitude}, region=${item.region}, country=${item.country})}"
+                                           class="badge bg-secondary text-white">
+                                            [[${item.cityName}]]
+                                        </a>
+                                    </div>
+                                    <a href="/clear-history" class="text-sm text-muted mt-2 d-block">清空历史</a>
+                                </div>
+                                <div th:else class="text-muted text-sm">暂无搜索历史</div>
+                            </div>
+                            <div class="col-md-6">
+                                <h5 class="h6 mb-2"><i class="fa fa-heart mr-1"></i>收藏城市</h5>
+                                <div th:if="${favorites != null && !favorites.isEmpty()}">
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <a th:each="fav : ${favorites}"
+                                           th:href="@{/favorites/{cityName}(cityName=${fav.cityName})}"
+                                           class="badge bg-danger text-white">
+                                            [[${fav.cityName}]]
+                                        </a>
+                                    </div>
+                                </div>
+                                <div th:else class="text-muted text-sm">暂无收藏城市</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    function getWeatherIcon(code) {
+        if (code === 0 || code === 1) return 'text-yellow';
+        if (code === 2 || code === 3) return 'text-gray';
+        if (code >= 45 && code <= 48) return 'text-gray';
+        if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return 'text-blue';
+        if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) return 'text-light-blue';
+        if (code >= 95 && code <= 99) return 'text-purple';
+        return 'text-gray';
+    }
+
+    function getWeatherIconClass(code) {
+        if (code === 0 || code === 1) return 'fa fa-sun-o';
+        if (code === 2 || code === 3) return 'fa fa-cloud';
+        if (code >= 45 && code <= 48) return 'fa fa-cloud';
+        if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return 'fa fa-cloud-rain';
+        if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) return 'fa fa-snowflake-o';
+        if (code >= 95 && code <= 99) return 'fa fa-bolt';
+        return 'fa fa-cloud';
+    }
+</script>
+</body>
+</html>
